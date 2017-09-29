@@ -197,3 +197,10 @@ class CLI():
         your = self._get_server(yours)
 
 
+def main():
+    fire.Fire(CLI)
+
+
+
+if __name__ == '__main__':
+    main()
