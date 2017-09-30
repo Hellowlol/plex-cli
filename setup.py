@@ -30,17 +30,17 @@ test_requirements = [
 ]
 
 setup(
-    name='plexcli',
+    name='plex-cli',
     version='0.0.1',
     description="Simple cli for plex",
     long_description=readme + '\n\n' + history,
     author="hellowlol",
     author_email='hellowlol1@gmail.com',
     url='https://github.com/hellowlol/plexcli',
-    packages=find_packages(include=['plexcli']),
+    packages=find_packages(include=['plex-cli']),
     entry_points={
         'console_scripts': [
-            'plexcli=plexcli.cli:main'
+            'plex-cli=plexcli.cli:main'
         ]
     },
     include_package_data=True,
@@ -53,8 +53,8 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
-        "Programming Language :: Python :: 2",
-        'Programming Language :: Python :: 2.6',
+        #"Programming Language :: Python :: 2",
+        #'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.3',
