@@ -11,8 +11,35 @@ import fire
 from plexapi import CONFIG
 from plexapi.myplex import MyPlexAccount
 from plexapi.server import PlexServer
-from plexapi.utils import download as utils_download
+#from plexapi.utils import download as utils_download
 from plexapi.video import Episode, Movie, Show
+
+from .utils import convert_size, prompt, _download, choose, select
+
+"""
+def prompt(msg, items):
+    result = []
+    while True:
+        try:
+            inp = click.prompt('%s' % msg)
+            if any(s in inp for s in (':', '::', '-')):
+                idx = slice(*map(lambda x: int(x.strip()) if x.strip() else None, inp.split(':')))
+                result =  items[idx]
+                break
+            elif ',' in inp:
+                ips = [int(i.strip()) for i in inp.split()]
+                result = [item[z] for z in items]
+                break
+
+            else:
+                result = items[int(inp)]
+                break
+
+        except(ValueError, IndexError):
+            pass
+
+    return result
+
 
 
 
@@ -76,7 +103,7 @@ def select(results):
             final.append(r)
 
     return final
-
+"""
 
 
 class CLI():
@@ -197,6 +224,62 @@ class CLI():
     def unshare(self, user):
         self.__account.removeFriend(user)
         click.echo('Unshared %s' % user)
+
+    def remove_dupes(self, lang='nor', ignore_category='Family'):
+        """Remove any duplicates from your movie library.
+
+           Args:
+                lang (str): ex nor, eng etc.
+                ingnore_ignore_category (str): Usefull for kids movies where i duplicates because of language
+
+           Returns:
+                None
+
+        """
+        pms = self._get_server()
+
+        ignore_category = ignore_category.split()
+        removed_files_size = 0
+        deleted = []
+        to_delete = []
+
+        for section in pms.library.sections():
+            # make sure we handle epds too if not
+            # go this another way.
+            if section.TYPE in ('movie'):
+                sec_dupes = section.search(duplicate=True)
+                for item in sec_dupes:
+                    zipped = zip(item.media, item.iterParts())
+                    parts = sorted(zipped, key=lambda i: i[1].size, reverse=True)
+                    for media, part in parts[1:]:
+
+                        if lang and any([True for i in part.audioStreams() if i.langCode == lang]):
+                            continue
+                        elif ignore_category and any(True for i in item.genres if i.tag == ignore_category):
+                            continue
+                        else:
+                            to_delete.append((media, part))
+
+
+        # Should the user be allowed to choose what should be deleted?
+        click.echo('Got %s after the filers.' % len(to_delete))
+
+        for i, (media, part) in enumerate(to_delete):
+            click.echo('%s: %s' % (i, part.file))
+
+        result = prompt('Select what files you want to delete> ', to_delete)
+        #if not isinstance(result, list):
+        #    result = [result]
+
+        if click.prompt('Are your sure you wish to delete %s files' % len(result)):
+            for media, part in result:
+                removed_files_size += part.size
+                pass# media.delete()
+
+        click.echo('Deleted %s files freeing up %s' % (len(result),
+                   convert_size(removed_files_size)))
+
+
 
     def diff(self, my_servername, your_servername, section_type=None):
         #raise NotImplementedError
