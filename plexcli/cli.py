@@ -67,7 +67,7 @@ def choose(msg, items, attr):
 
 def select(results):
     final = []
-    result = choose('Choose result', results, lambda x: '(%s) %s' % (x.type.title(), x.title[0:60]))
+    result = choose('Choose result', results, lambda x: '(%s) %s %s' % (x.type.title(), x.title[0:60], x._server.friendlyName))
     for r in result:
         if isinstance(r, Show):
             display = lambda i: '%s %s %s' % (r.grandparentTitle, r.seasonEpisode, r.title)
@@ -99,8 +99,8 @@ class CLI():
     def _get_server(self, servername=None, owned=False):
         """Helper for servers."""
         if servername:
-            self.__server = self.__account.resource(servername).connect()
-            return self._server
+            return self.__account.resource(servername).connect()
+            #return self.__server
 
         servers = [s for s in self.__account.resources() if 'server' in s.provides]
         if owned:
@@ -119,6 +119,9 @@ class CLI():
 
            Returns:
                 PlexServer
+
+           Example:
+                plex-cli server S-PC library section TV-Shows update
         """
 
         n = name or self._servername
@@ -161,7 +164,8 @@ class CLI():
                     if callable(do):
                         # Make sure protect the user from stupid stuff
                         if cmd == 'delete':
-                            if click.confirm('Are you sure you wish to delete'):
+                            title = item.title or item.name
+                            if click.confirm('Are you sure you wish to delete %s?' % title):
                                 do()
                         else:
                             do()
@@ -194,10 +198,52 @@ class CLI():
         self.__account.removeFriend(user)
         click.echo('Unshared %s' % user)
 
-    def diff(self, mine, yours, section_type=None):
-        raise NotImplementedError
-        mine = self._get_server(mine)
-        your = self._get_server(yours)
+    def diff(self, my_servername, your_servername, section_type=None):
+        #raise NotImplementedError
+        my_result = []
+        your_result = []
+
+        mine = self._get_server(my_servername)
+        your = self._get_server(your_servername)
+        if section_type is None:
+            # Lets try to set some sane defaults
+            section_type = ('show', 'movie')
+
+        for section in mine.library.sections():
+            if section.TYPE in section_type:
+                my_result += section.all()
+
+        for section in your.library.sections():
+            if section.TYPE in section_type:
+                your_result += section.all()
+
+        # Everything below is just silly.
+        click.echo('%s got %s' % (mine.friendlyName, len(my_result)))
+        click.echo('%s got %s' % (your.friendlyName, len(your_result)))
+
+        if len(my_result) > len(your_result):
+            click.echo('You won the epeen contest')
+        else:
+            click.echo("You lost :'(")
+
+        missing = []
+        # fix missing we need to check the guid.
+        for your_item in your_result:
+            if your_item not in my_result:
+                missing.append(your_item)
+
+        print(len(missing))
+        #for miss in missing:
+        #    click.echo(miss.title)
+
+
+
+
+
+
+
+
+
 
 
 def main():
