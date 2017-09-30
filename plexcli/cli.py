@@ -30,6 +30,9 @@ def _download(items, path=None):
 def choose(msg, items, attr):
     result = []
 
+    if not len(items):
+        return result
+
     click.echo('')
     for i, item in enumerate(items):
         name = attr(item) if callable(attr) else getattr(item, attr)
