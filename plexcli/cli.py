@@ -14,7 +14,13 @@ from plexapi.server import PlexServer
 #from plexapi.utils import download as utils_download
 from plexapi.video import Episode, Movie, Show
 
-from .utils import convert_size, prompt, _download, choose, select
+from .utils import convert_size, prompt, _download, choose, select, get_genre
+
+import logging
+#logging.basicConfig(level=logging.DEBUG)
+
+
+LOG = logging.getLogger(__file__)
 
 
 
@@ -39,7 +45,6 @@ class CLI():
         """Helper for servers."""
         if servername:
             return self.__account.resource(servername).connect()
-            #return self.__server
 
         servers = [s for s in self.__account.resources() if 'server' in s.provides]
         if owned:
@@ -170,26 +175,43 @@ class CLI():
 
         ignore_category = ignore_category.split()
         removed_files_size = 0
-        deleted = []
         to_delete = []
+        all_dupes = []
 
         for section in pms.library.sections():
             # make sure we handle epds too if not
             # go this another way.
             if section.TYPE in ('movie'):
-                sec_dupes = section.search(duplicate=True)
-                for item in sec_dupes:
-                    zipped = zip(item.media, item.iterParts())
-                    parts = sorted(zipped, key=lambda i: i[1].size, reverse=True)
-                    for media, part in parts[1:]:
+                all_dupes = section.search(duplicate=True)
+            elif section.TYPE in ('show'):
+                all_dupes += section.search(libtype='episode', duplicate=True)
 
-                        if lang and any([True for i in part.audioStreams() if i.langCode == lang]):
-                            continue
-                        elif ignore_category and any(True for i in item.genres if i.tag == ignore_category):
-                            continue
-                        else:
-                            to_delete.append((media, part))
+        # Should we have a spinner to a progess bar? Since this can be slow.
+        for item in all_dupes:
+            # Remove this hack when https://github.com/pkkid/python-plexapi/issues/201 has been fixed
+            patched_items = []
+            for zomg in item.media:
+                zomg._initpath = item.key
+                patched_items.append(zomg)
 
+            zipped = zip(patched_items, item.iterParts())
+            parts = sorted(zipped, key=lambda i: i[1].size, reverse=True)
+
+            LOG.debug('Keeping %s %s' %  (parts[0][1].file, convert_size(parts[0][1].size)))
+            for media, part in parts[1:]:
+                LOG.debug('Checking if %s  %s should be deleted' % (part.file, convert_size(part.size)))
+
+                if lang and any([True for i in part.audioStreams() if i.langCode == lang]):
+                    LOG.debug('False, because of lang code')
+                    continue
+
+                elif ignore_category and any(True for i in get_genre(item) if i.tag == ignore_category):
+                    LOG.debug('False, because of ignore_category')
+                    continue
+
+                else:
+                    LOG.debug('True')
+                    to_delete.append((media, part))
 
         # Should the user be allowed to choose what should be deleted?
         click.echo('Got %s after the filers.' % len(to_delete))
@@ -198,13 +220,17 @@ class CLI():
             click.echo('%s: %s' % (i, part.file))
 
         result = prompt('Select what files you want to delete> ', to_delete)
-        #if not isinstance(result, list):
-        #    result = [result]
 
+        delete = False
         if click.prompt('Are your sure you wish to delete %s files' % len(result)):
-            for media, part in result:
-                removed_files_size += part.size
-                pass# media.delete()
+            delete = True
+
+        for media, part in result:
+            removed_files_size += part.size
+            if delete:
+                # TODO add click style.
+                click.echo('Deleting %s %s' % (part.file, convert_size(part.size)))
+                media.delete()
 
         click.echo('Deleted %s files freeing up %s' % (len(result),
                    convert_size(removed_files_size)))

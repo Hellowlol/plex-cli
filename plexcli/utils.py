@@ -105,3 +105,11 @@ def convert_size(size_bytes):
     p = math.pow(1024, i)
     s = round(size_bytes / p, 2)
     return "%s %s" % (s, size_name[i])
+
+
+
+def get_genre(item):
+    if item.TYPE == 'episode':
+        return item.show().genres
+    return item.genres
+
