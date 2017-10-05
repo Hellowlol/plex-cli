@@ -18,7 +18,7 @@ def prompt(msg, items):
                 break
             elif ',' in inp:
                 ips = [int(i.strip()) for i in inp.split()]
-                result = [item[z] for z in items]
+
                 break
 
             else:
@@ -66,7 +66,7 @@ def choose(msg, items, attr):
                 break
             elif ',' in inp:
                 ips = [int(i.strip()) for i in inp.split()]
-                result = [item[z] for z in items]
+                result = [items[z] for z in ips]
                 break
 
             else:
@@ -112,4 +112,3 @@ def get_genre(item):
     if item.TYPE == 'episode':
         return item.show().genres
     return item.genres
-

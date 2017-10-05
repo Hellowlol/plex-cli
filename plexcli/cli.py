@@ -3,25 +3,25 @@
 """Console script for plexcli."""
 
 import os
+import logging
+from functools import partial
 
-from tqdm import tqdm
 import click
 import fire
 
 from plexapi import CONFIG
 from plexapi.myplex import MyPlexAccount
 from plexapi.server import PlexServer
-#from plexapi.utils import download as utils_download
 from plexapi.video import Episode, Movie, Show
 
-from .utils import convert_size, prompt, _download, choose, select, get_genre
-
-import logging
-#logging.basicConfig(level=logging.DEBUG)
+from .utils import choose, convert_size, get_genre, prompt, select, _download
 
 
 LOG = logging.getLogger(__file__)
 
+
+# Just patch this to keep it dry
+click.prompt = partial(click.prompt, prompt_suffix='> ')
 
 
 class CLI():
@@ -165,7 +165,7 @@ class CLI():
 
            Args:
                 lang (str): ex nor, eng etc.
-                ingnore_ignore_category (str): Usefull for kids movies where i duplicates because of language
+                ingnore_ignore_category (str): Usefull for kids movies where i have duplicates because of language
 
            Returns:
                 None
@@ -213,27 +213,30 @@ class CLI():
                     LOG.debug('True')
                     to_delete.append((media, part))
 
-        # Should the user be allowed to choose what should be deleted?
-        click.echo('Got %s after the filers.' % len(to_delete))
 
         for i, (media, part) in enumerate(to_delete):
             click.echo('%s: %s' % (i, part.file))
 
-        result = prompt('Select what files you want to delete> ', to_delete)
+        result = prompt('Select what files you want to delete', to_delete)
 
         delete = False
-        if click.prompt('Are your sure you wish to delete %s files' % len(result)):
+        if click.confirm('Are your sure you wish to delete %s files' % len(result)):
             delete = True
+
+        # This has to require a double confirm as there is no turning back.
+        if delete is True:
+            delete = False
+            if click.confirm('Are your really sure you want to delete the files? There is NO turning back'):
+                delete = True
 
         for media, part in result:
             removed_files_size += part.size
             if delete:
-                # TODO add click style.
-                click.echo('Deleting %s %s' % (part.file, convert_size(part.size)))
+                click.secho('Deleting %s %s' % (part.file, convert_size(part.size)), fg='red')
                 media.delete()
 
-        click.echo('Deleted %s files freeing up %s' % (len(result),
-                   convert_size(removed_files_size)))
+        click.secho('Deleted %s files freeing up %s' % (len(result),
+                   convert_size(removed_files_size)), fg='red')
 
 
 
