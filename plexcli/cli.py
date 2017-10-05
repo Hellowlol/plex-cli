@@ -66,11 +66,7 @@ class CLI():
             resource = server[0]
 
         url = 'https://app.plex.tv/desktop#!/server/%s?key=' % (resource.clientIdentifier)
-        try:
-            import webbrowser
-            ctrl = webbrowser.open(url)
-        except:
-            pass
+        click.launch(url)
 
     def server(self, name=None):
         """Command for PlexServer.
