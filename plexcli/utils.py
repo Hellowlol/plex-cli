@@ -16,9 +16,10 @@ def prompt(msg, items):
                 idx = slice(*map(lambda x: int(x.strip()) if x.strip() else None, inp.split(':')))
                 result =  items[idx]
                 break
+
             elif ',' in inp:
                 ips = [int(i.strip()) for i in inp.split()]
-
+                result = [items[z] for z in ips]
                 break
 
             else:
