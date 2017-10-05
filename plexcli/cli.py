@@ -30,14 +30,13 @@ class CLI():
         self._username = username or CONFIG.get('auth.myplex_username')
         self._password = password or CONFIG.get('auth.myplex_password')
         self._servername = servername or CONFIG.get('default.servername')
-        self.__server = None
 
         if not self._username or not self._password:
             self._username = click.prompt('Enter username')
             self._password = click.prompt('Enter password')
 
         if debug:
-            pass
+            logging.basicConfig(level=logging.DEBUG)
 
         self.__account = MyPlexAccount(self._username, self._password)
 
@@ -66,7 +65,7 @@ class CLI():
             resource = server[0]
 
         url = 'https://app.plex.tv/desktop#!/server/%s?key=' % (resource.clientIdentifier)
-        click.launch(url)
+        return click.launch(url)
 
     def server(self, name=None):
         """Command for PlexServer.
@@ -140,11 +139,12 @@ class CLI():
 
     def watching(self):
         pms = self._get_server()
+        sessions = pms.sessions()
         c = choose('Select a user',
-                   pms.sessions(),
+                   sessions,
                    lambda k: '%s %s' % (''.join(k.usernames), k.title))
 
-        return
+        return sessions
 
     def share(self, user, sections=None, servername=None):
         # THIS TOOL WILL ADD EVERY section by default!
