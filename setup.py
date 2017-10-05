@@ -31,12 +31,12 @@ test_requirements = [
 
 setup(
     name='plex-cli',
-    version='0.0.1',
+    version='0.0.2',
     description="Simple cli for plex",
     long_description=readme + '\n\n' + history,
     author="hellowlol",
     author_email='hellowlol1@gmail.com',
-    url='https://github.com/hellowlol/plexcli',
+    url='https://github.com/hellowlol/plex-cli',
     packages=find_packages(include=['plex-cli']),
     entry_points={
         'console_scripts': [
