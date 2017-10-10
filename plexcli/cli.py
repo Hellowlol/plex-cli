@@ -274,6 +274,53 @@ class CLI():
         #for miss in missing:
         #    click.echo(miss.title)
 
+    def sync(self, frm=None, to=None, section_type=None, two_way=False):
+        """ Sync between servers."""
+        #logging.basicConfig(level=logging.DEBUG)
+        my_result = []
+        your_result = []
+
+        your = self._get_server(frm)
+        mine = self._get_server(to)
+
+        if section_type is None:
+            # Lets try to set some sane defaults
+            section_type = ('show', 'movie')
+        else:
+            section_type.split(',')
+
+        for section in your.library.sections():
+            # Let's lean on pms for this one as pmsapi does not support this atm
+            # using plexapi for this takes more 40 sec in my library
+            # TODO fix this
+            if section.TYPE == 'show':
+                key = '/library/sections/%s/all?type=4&viewCount>=0' % section.key
+                your_result += section.fetchItems(key)
+
+            elif section.TYPE == 'movie':
+                key = '/library/sections/%s/all?viewCount>=0' % section.key
+                your_result += section.fetchItems(key)
+
+        # remove this when it cache in plexapi
+        check_sections = [section for section in your.library.sections() if section.TYPE in section_type]
+        for item in your_result:
+            for section in check_sections:
+                    # So this is bad as it requires a reload to get the item.guid
+                    # but i dont know any better more reliable way to get the correct item.
+                    result = section.search(guid=item.guid)
+                    if result:
+                        mf = result[0]
+                        click.echo('Setting %s as watched on %s' % (mf._prettyfilename(), mine.friendlyName))
+                        #mf.markAsWatched()
+
+        if two_way:
+            sync(mine.friendlyName, your.friendlyName, section_type=','join(section_type))
+
+
+
+
+
+
 
 
 
