@@ -8,6 +8,7 @@ from functools import partial
 
 import click
 import fire
+from tqdm import tqdm
 
 from plexapi import CONFIG
 from plexapi.myplex import MyPlexAccount
@@ -25,11 +26,13 @@ click.prompt = partial(click.prompt, prompt_suffix='> ')
 
 
 class CLI():
-    """Main class for the cli mostly used for storage."""
-    def __init__(self, username=None, password=None, servername=None, debug=False):
+    """Simple cli for plex. --dry_run=True to test commands."""
+    def __init__(self, username=None, password=None, servername=None, debug=False, dry_run=False):
+        print(locals())
         self._username = username or CONFIG.get('auth.myplex_username')
         self._password = password or CONFIG.get('auth.myplex_password')
         self._servername = servername or CONFIG.get('default.servername')
+        self._dry_run = dry_run
 
         if not self._username or not self._password:
             self._username = click.prompt('Enter username')
@@ -40,7 +43,7 @@ class CLI():
 
         self.__account = MyPlexAccount(self._username, self._password)
 
-    def _get_server(self, servername=None, owned=False):
+    def _get_server(self, servername=None, owned=False, msg='Select server'):
         """Helper for servers."""
         if servername:
             return self.__account.resource(servername).connect()
@@ -49,11 +52,17 @@ class CLI():
         if owned:
             servers = [s for s in server is s.owned]
 
-        server = choose('Select server', servers, 'name')
+        server = choose(msg, servers, 'name')
         n = server[0].connect()
         return n
 
     def browser(self, servername=None):
+        """Open the plex web inferface in your default browser.resource
+
+           Args:
+                servername (str): the server your want to use.
+
+        """
         # So it would be nice if we didnt have to login..
         name = servername or self._servername
         if name:
@@ -87,6 +96,10 @@ class CLI():
 
         return self.__account.resource(n).connect()
 
+    def account(self):
+        """Access to the account."""
+        return self.__account
+
     def search(self, query, cmd=None, save_path=None, all_servers=False):
         """Search plex using hub search on your own or on all servers.
            If you pass a cmd it will be called in the items you select
@@ -112,20 +125,27 @@ class CLI():
         if result and cmd:
 
             if cmd == 'download':
-                result = select(result)
-                _download(result, save_path)
+                if not self._dry_run:
+                    result = select(result)
+                    _download(result, save_path)
+                else:
+                    click.echo('Skipping download bacause of dry_run')
 
             else:
                 for item in result:
                     do = getattr(item, cmd)
                     if callable(do):
-                        # Make sure protect the user from stupid stuff
-                        if cmd == 'delete':
-                            title = item.title or item.name
-                            if click.confirm('Are you sure you wish to delete %s?' % title):
+                        if self._dry_run is False:
+                            # Make sure protect the user from stupid stuff
+                            if cmd == 'delete':
+                                title = item.title or item.name
+                                if click.confirm('Are you sure you wish to delete %s?' % title):
+                                    do()
+
+                            else:
                                 do()
                         else:
-                            do()
+                            click.echo('Skipping %s on %s becaue of dry_run' % (do, item.title))
 
         return result
 
@@ -147,10 +167,28 @@ class CLI():
         return sessions
 
     def share(self, user, sections=None, servername=None):
-        # THIS TOOL WILL ADD EVERY section by default!
+        """Share library(s) with a user.
+           WARNING: BY default this will add EVERY sections!
+
+           Args:
+                user (str): the user you want to share with.
+                sections (str): sections
+                servername (str): the server you want to share.
+
+           Returns: None
+
+        """
         pms = self._get_server(servername)
-        self.__account.inviteFriend(user, pms, pms.sections())
-        click.echo('Shared %s on %s with %s' % (','.join(i.title for i in pms.sections()), pms.friendlyName, user))
+
+        if sections is None:
+            sections = pms.sections()
+        else:
+            sections = sections.split(',')
+            sections = [s for s in pms.section if s.title in sections]
+
+        if self._dry_run is False:
+            self.__account.inviteFriend(user, pms, sections)
+            click.echo('Shared %s on %s with %s' % (','.join(i.title for i in pms.sections()), pms.friendlyName, user))
 
     def unshare(self, user):
         self.__account.removeFriend(user)
@@ -228,8 +266,12 @@ class CLI():
         for media, part in result:
             removed_files_size += part.size
             if delete:
-                click.secho('Deleting %s %s' % (part.file, convert_size(part.size)), fg='red')
-                media.delete()
+                if self._dry_run is False:
+                    click.secho('Deleting %s %s' % (part.file, convert_size(part.size)), fg='red')
+                    media.delete()
+                else:
+                    click.echo('Didnt deleting %s %s because of dry_run' % (part.file, convert_size(part.size)))
+
 
         click.secho('Deleted %s files freeing up %s' % (len(result),
                    convert_size(removed_files_size)), fg='red')
@@ -264,24 +306,29 @@ class CLI():
         else:
             click.echo("You lost :'(")
 
-        missing = []
-        # fix missing we need to check the guid.
-        for your_item in your_result:
-            if your_item not in my_result:
-                missing.append(your_item)
+        #missing = []
+        #for your_item in your_result:
+        #    if your_item not in my_result:
+        #        missing.append(your_item)
 
-        print(len(missing))
         #for miss in missing:
         #    click.echo(miss.title)
 
-    def sync(self, frm=None, to=None, section_type=None, two_way=False):
-        """ Sync between servers."""
-        #logging.basicConfig(level=logging.DEBUG)
+    def sync(self, frm=None, too=None, section_type=None, two_way=False):
+        """ Sync between servers.
+
+            Args:
+                frm (str): the server you want to sync from
+                too (str): the server you want to sync to
+                section_type(str): The sections types you want synced.
+                two_way (bool): Sync two ways
+
+        """
         my_result = []
         your_result = []
 
-        your = self._get_server(frm)
-        mine = self._get_server(to)
+        your = self._get_server(frm, msg='Select the server you want to sync from')
+        mine = self._get_server(too, msg='Select the server you want to sync too')
 
         if section_type is None:
             # Lets try to set some sane defaults
@@ -303,18 +350,20 @@ class CLI():
 
         # remove this when it cache in plexapi
         check_sections = [section for section in your.library.sections() if section.TYPE in section_type]
-        for item in your_result:
-            for section in check_sections:
-                    # So this is bad as it requires a reload to get the item.guid
+        with tqdm(your_result) as yr:
+            for item in yr:
+                for section in check_sections:
+                    # So this is bad.. as it requires a reload to get the item.guid
                     # but i dont know any better more reliable way to get the correct item.
                     result = section.search(guid=item.guid)
                     if result:
                         mf = result[0]
-                        click.echo('Setting %s as watched on %s' % (mf._prettyfilename(), mine.friendlyName))
-                        #mf.markAsWatched()
+                        tqdm.write('Setting %s as WATCHED on %s' % (mf._prettyfilename(), mine.friendlyName))
+                        mf.markAsWatched()
 
         if two_way:
-            sync(mine.friendlyName, your.friendlyName, section_type=','join(section_type))
+            click.echo('Started too sync the other way')
+            sync(mine.friendlyName, your.friendlyName, section_type=','.join(section_type))
 
 
 

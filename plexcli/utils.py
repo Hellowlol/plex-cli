@@ -36,6 +36,7 @@ def prompt(msg, items):
 
 
 def _download(items, path=None):
+    locs = []
     for item in items:
         parts = [i for i in item.iterParts() if i]
         for part in parts:
@@ -43,6 +44,9 @@ def _download(items, path=None):
             url = item._server.url('%s?download=1' % part.key)
             filepath = utils_download(url, filename=filename, savepath=path,
                                       session=item._server._session, showstatus=True)
+            locs.append(filepath)
+
+    return locs
 
 
 def choose(msg, items, attr):
