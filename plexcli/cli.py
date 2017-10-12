@@ -28,7 +28,6 @@ click.prompt = partial(click.prompt, prompt_suffix='> ')
 class CLI():
     """Simple cli for plex. --dry_run=True to test commands."""
     def __init__(self, username=None, password=None, servername=None, debug=False, dry_run=False):
-        print(locals())
         self._username = username or CONFIG.get('auth.myplex_username')
         self._password = password or CONFIG.get('auth.myplex_password')
         self._servername = servername or CONFIG.get('default.servername')
@@ -57,7 +56,7 @@ class CLI():
         return n
 
     def browser(self, servername=None):
-        """Open the plex web inferface in your default browser.resource
+        """Open the plex web interface in your default browser.
 
            Args:
                 servername (str): the server your want to use.
@@ -136,7 +135,7 @@ class CLI():
                     do = getattr(item, cmd)
                     if callable(do):
                         if self._dry_run is False:
-                            # Make sure protect the user from stupid stuff
+                            # Make sure we protect the user from doing stupid stuff.
                             if cmd == 'delete':
                                 title = item.title or item.name
                                 if click.confirm('Are you sure you wish to delete %s?' % title):
@@ -150,6 +149,7 @@ class CLI():
         return result
 
     def kick(self, user, reason=''):
+        """Stop a playback on your server."""
         pms = self._get_server()
         for mediaitem in pms.sessions():
             un = ''.join(mediaitem.usernames).lower()
@@ -158,6 +158,7 @@ class CLI():
                 mediaitem.stop(reason)
 
     def watching(self):
+        """Who's streaming from your server."""
         pms = self._get_server()
         sessions = pms.sessions()
         c = choose('Select a user',
@@ -213,14 +214,11 @@ class CLI():
         all_dupes = []
 
         for section in pms.library.sections():
-            # make sure we handle epds too if not
-            # go this another way.
             if section.TYPE in ('movie'):
                 all_dupes = section.search(duplicate=True)
             elif section.TYPE in ('show'):
                 all_dupes += section.search(libtype='episode', duplicate=True)
 
-        # Should we have a spinner to a progess bar? Since this can be slow.
         for item in all_dupes:
             # Remove this hack when https://github.com/pkkid/python-plexapi/issues/201 has been fixed
             patched_items = []
@@ -236,15 +234,15 @@ class CLI():
                 LOG.debug('Checking if %s  %s should be deleted' % (part.file, convert_size(part.size)))
 
                 if lang and any([True for i in part.audioStreams() if i.langCode == lang]):
-                    LOG.debug('False, because of lang code')
+                    LOG.debug('Skipping, because of lang code')
                     continue
 
                 elif ignore_category and any(True for i in get_genre(item) if i.tag == ignore_category):
-                    LOG.debug('False, because of ignore_category')
+                    LOG.debug('Skipping, because of ignore_category')
                     continue
 
                 else:
-                    LOG.debug('True')
+                    LOG.debug('Added to delete list.')
                     to_delete.append((media, part))
 
 
@@ -279,7 +277,7 @@ class CLI():
 
 
     def diff(self, my_servername, your_servername, section_type=None):
-        #raise NotImplementedError
+        """E-PEEN check"""
         my_result = []
         your_result = []
 
@@ -319,7 +317,7 @@ class CLI():
 
             Args:
                 frm (str): the server you want to sync from
-                too (str): the server you want to sync to
+                too (str): the server you want to sync too
                 section_type(str): The sections types you want synced.
                 two_way (bool): Sync two ways
 
@@ -337,9 +335,8 @@ class CLI():
             section_type.split(',')
 
         for section in your.library.sections():
-            # Let's lean on pms for this one as pmsapi does not support this atm
-            # using plexapi for this takes more 40 sec in my library
-            # TODO fix this
+            # Let's lean on pms for this one as plexapi does not support this atm
+            # using plexapi for this takes more 40 sec in my library.
             if section.TYPE == 'show':
                 key = '/library/sections/%s/all?type=4&viewCount>=0' % section.key
                 your_result += section.fetchItems(key)
@@ -348,13 +345,14 @@ class CLI():
                 key = '/library/sections/%s/all?viewCount>=0' % section.key
                 your_result += section.fetchItems(key)
 
-        # remove this when it cache in plexapi
+        # remove this when it cached in plexapi
         check_sections = [section for section in your.library.sections() if section.TYPE in section_type]
         with tqdm(your_result) as yr:
             for item in yr:
                 for section in check_sections:
-                    # So this is bad.. as it requires a reload to get the item.guid
-                    # but i dont know any better more reliable way to get the correct item.
+                    # Accessing a guid requires a reload..
+                    # But i dont't know a better way to make sure
+                    # we checking the same items.
                     result = section.search(guid=item.guid)
                     if result:
                         mf = result[0]

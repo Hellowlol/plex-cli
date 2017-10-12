@@ -31,7 +31,7 @@ test_requirements = [
 
 setup(
     name='plex-cli',
-    version='0.0.2',
+    version='0.0.3',
     description="Simple cli for plex",
     long_description=readme + '\n\n' + history,
     author="hellowlol",
