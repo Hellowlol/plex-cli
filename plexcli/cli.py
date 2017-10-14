@@ -275,6 +275,40 @@ class CLI():
                    convert_size(removed_files_size)), fg='red')
 
 
+    def delete_watched(server=None, sections=None, filter=0):
+        server = self._get_server(server)
+
+        if section_type is None:
+            # Lets try to set some sane defaults
+            section_type = ('show', 'movie')
+        else:
+            section_type.split(',')
+
+        watched = []
+        for section in server.library.sections():
+            if section.TYPE in section_type:
+                if section.TYPE == 'show':
+                key = '/library/sections/%s/all?type=4&viewCount>=0' % section.key
+                watched += section.fetchItems(key)
+
+            elif section.TYPE == 'movie':
+                key = '/library/sections/%s/all?viewCount>=0' % section.key
+                watched += section.fetchItems(key)
+
+        if filter:
+            pass # ADD FILTER ON 4
+
+        y = False
+        y = click.confirm('Are your sure your want to delete %s wached items:' % len(watched))
+        if y is True:
+            if click.confirm('Are your REALLY sure? There is NO turning back..'):
+                for item in watched:
+                    pass# item.delete()
+
+
+
+
+
 
     def diff(self, my_servername, your_servername, section_type=None):
         """E-PEEN check"""

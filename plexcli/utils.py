@@ -35,6 +35,15 @@ def prompt(msg, items):
     return result
 
 
+def double_confirm(msg):
+    ans = False
+    ans = click.confirm(msg)
+    if ans is True:
+        if click('Are you really sure? %s. There is NO turning back.'):
+            return True
+    return ans
+
+
 def _download(items, path=None):
     locs = []
     for item in items:
