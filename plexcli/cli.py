@@ -276,6 +276,8 @@ class CLI():
 
 
     def delete_watched(server=None, sections=None, filter=0):
+        """Delete watched content. """
+
         server = self._get_server(server)
 
         if section_type is None:
