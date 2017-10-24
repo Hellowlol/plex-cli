@@ -245,7 +245,6 @@ class CLI():
                     LOG.debug('Added to delete list.')
                     to_delete.append((media, part))
 
-
         for i, (media, part) in enumerate(to_delete):
             click.echo('%s: %s' % (i, part.file))
 
@@ -275,7 +274,7 @@ class CLI():
                    convert_size(removed_files_size)), fg='red')
 
 
-    def delete_watched(server=None, sections=None, filter=0):
+    def delete_watched(self, server=None, section_type=None, filter=0):
         """Delete watched content. """
 
         server = self._get_server(server)
@@ -290,22 +289,26 @@ class CLI():
         for section in server.library.sections():
             if section.TYPE in section_type:
                 if section.TYPE == 'show':
-                key = '/library/sections/%s/all?type=4&viewCount>=0' % section.key
-                watched += section.fetchItems(key)
+                    key = '/library/sections/%s/all?type=4&viewCount>=0' % section.key
+                    watched += section.fetchItems(key)
 
             elif section.TYPE == 'movie':
                 key = '/library/sections/%s/all?viewCount>=0' % section.key
                 watched += section.fetchItems(key)
 
+        # TODO
         if filter:
-            pass # ADD FILTER ON 4
+            pass
 
-        y = False
-        y = click.confirm('Are your sure your want to delete %s wached items:' % len(watched))
-        if y is True:
+        sure = False
+        sure = click.confirm('Are your sure your want to delete %s wached items:' % len(watched))
+        if sure is True:
             if click.confirm('Are your REALLY sure? There is NO turning back..'):
                 for item in watched:
-                    pass# item.delete()
+                    click.echo('Deleting %s' % item._prettyfilename())
+                    item.delete()
+
+                click.echo('Done. Deleted %s media items' % len(watched))
 
 
 
